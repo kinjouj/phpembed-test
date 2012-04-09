@@ -5,11 +5,11 @@
         }
 
         public function getMessage() {
-            return $this->message;
+            return "ゲッツ!!";
         }
     }
 
     return new Sample();
 
-//    return array("hoge", "fuga");
+//    return array("hoge", "fuga", 1);
 ?>

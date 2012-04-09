@@ -33,25 +33,44 @@ int main(int argc, char** argv) {
                 zval** data;
                 zend_hash_get_current_data(retval->value.ht, (void**)&data);
 
-                if (Z_TYPE_PP(data) == IS_STRING) {
-                    cout << Z_STRVAL_PP(data) << endl;
+                cout << "type " << Z_TYPE_PP(data) << endl;
+
+                switch(Z_TYPE_PP(data)) {
+                    case IS_LONG:
+                        cout << "[ARRAY][LONG]: " << Z_LVAL_PP(data) << endl;
+                        break;
+
+                    case IS_STRING:
+                        cout << "[ARRAY][STRING]: " << Z_STRVAL_PP(data) << endl;
+                        break;
                 }
 
                 zend_hash_move_forward(retval->value.ht);
             }
         } else if (Z_TYPE_P(retval) == IS_OBJECT) {
             zend_class_entry* ce;
-            ce = Z_OBJCE_P(retval);
-//            ce = zend_get_class_entry(retval);
+            ce = Z_OBJCE_P(retval); // ce = zend_get_class_entry(retval);
 
             if (strcmp(ce->name, (char*)"Sample") == 0) {
                 char* propname;
                 propname = (char*)"message";
 
                 zval* property;
-                property = zend_read_property(ce, retval, propname, strlen(propname),0);
+                property = zend_read_property(ce, retval, propname, strlen(propname), 0);
 
                 cout << Z_STRVAL_P(property) << endl;
+
+                zval fname;
+                ZVAL_STRING(&fname, "getMessage", 0);
+
+                zval* retval2;
+                MAKE_STD_ZVAL(retval2);
+
+                call_user_function_ex(NULL, &retval, &fname, &retval2, 0, NULL, 0,NULL TSRMLS_CC);
+
+                if (Z_TYPE_P(retval2) == IS_STRING) {
+                    cout << "[OBJECT][Sample][method:getMessage]: " << Z_STRVAL_P(retval2) << endl;
+                }
             }
         }
     } zend_end_try();
