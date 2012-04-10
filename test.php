@@ -9,7 +9,18 @@
         }
     }
 
-    return new Sample();
+//    return new Sample();
 
-//    return array("hoge", "fuga", 1);
+    $cb = function() {
+        return array("hoge fuga foobar");
+    };
+
+    return array("hoge", "fuga", 1, array("foobar"), $cb);
+
+
+/*
+    return function() {
+        var_dump(array("hoge", "fuga"));
+    };
+*/
 ?>
