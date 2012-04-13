@@ -2,8 +2,15 @@
 
 using namespace std;
 
-void invoke_method(zval* val, const char* method) {
+long invoke_method(zval* val, const char* method,zval** retval) {
+    if (Z_TYPE_P(val) != IS_OBJECT) {
+        return -1;
+    }
 
+    zval fname;
+    ZVAL_STRING(&fname, method, 0);
+
+    return call_user_function_ex(NULL, &val, &fname, retval, 0, NULL, 0, NULL TSRMLS_CC);
 }
 
 void execute_closure(zval* val) {
@@ -12,7 +19,10 @@ void execute_closure(zval* val) {
 
     zval* retval;
 
-    if (call_user_function_ex(NULL, &val, &fname, &retval, 0, NULL, 0, NULL TSRMLS_CC) == SUCCESS) {
+    long status;
+    status = invoke_method(val, (const char*)"__invoke", &retval);
+
+    if (status == SUCCESS) {
         int type;
         type = Z_TYPE_P(retval);
 
@@ -37,7 +47,11 @@ void execute_closure(zval* val) {
 
 void recursive_array(zval* val) {
     long size = 0;
-    size = zend_hash_num_elements(Z_ARRVAL_P(val)); //size = retval->value.ht->nNumOfElements;
+
+    if (Z_TYPE_P(val) == IS_ARRAY) {
+        size = zend_hash_num_elements(Z_ARRVAL_P(val));
+        //size = retval->value.ht->nNumOfElements;
+    }
 
     int i;
 
@@ -78,7 +92,22 @@ void recursive_array(zval* val) {
     }
 }
 
+vector<string> buffers;
+
+int ub_write_func(const char* buf, unsigned int n) {
+    buffers.push_back(string(buf));
+
+    return 0;
+}
+
+int header_handler(sapi_header_struct * sapiHeader, sapi_header_op_enum op, sapi_headers_struct* sapi_headers TSRMLS_DC) {
+    cout << "header: " << sapiHeader->header << endl;
+}
+
 int main(int argc, char** argv) {
+    php_embed_module.ub_write = ub_write_func;
+    php_embed_module.header_handler = header_handler;
+
     PHP_EMBED_START_BLOCK(argc, argv);
 
     zend_file_handle script;
@@ -92,6 +121,19 @@ int main(int argc, char** argv) {
         MAKE_STD_ZVAL(retval);
 
         zend_execute_scripts(ZEND_REQUIRE TSRMLS_CC, &retval, 1, &script);
+
+        int size;
+        size = buffers.size();
+
+        if (size > 0) {
+            int i;
+
+            for (vector<string>::const_iterator itr = buffers.begin(); itr != buffers.end(); ++itr) {
+                string t = *itr;
+
+                cout << t << endl;
+            }
+        }
 
         if (Z_TYPE_P(retval) == IS_STRING) {
             cout << "[STRING] " << retval->value.str.val << endl;
@@ -117,7 +159,10 @@ int main(int argc, char** argv) {
                 zval fname;
                 ZVAL_STRING(&fname, "getMessage", 0);
 
-                if (call_user_function_ex(NULL, &retval, &fname, &retval2, 0, NULL, 0,NULL TSRMLS_CC) == SUCCESS) {
+                int status;
+                status = invoke_method(retval, "getMessage", &retval2);
+
+                if (status == SUCCESS) {
                     if (Z_TYPE_P(retval2) == IS_STRING) {
                         cout << "[OBJECT][Class][" << ce->name << "][Method:getMessage]: " << Z_STRVAL_P(retval2) << endl;
                     }
@@ -129,6 +174,8 @@ int main(int argc, char** argv) {
     } zend_end_try();
 
     PHP_EMBED_END_BLOCK();
+
+    cout << "buffer size: " << buffers.size() << endl;
 
     return 0;
 }
